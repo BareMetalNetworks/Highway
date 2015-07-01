@@ -44,7 +44,7 @@ else
   #exit 1
 end
 
-$stack = Queque.new
+$stack = Array.new
 
 def lexxsexx(expr, opsTable)
   tokens = expr.split(" ")
@@ -54,46 +54,56 @@ def lexxsexx(expr, opsTable)
   end
 end
 
-dispatch {
- :sudo => lambda {|x| channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
-   abort "Could not execute sudo #{command} unless success"
-   channel.on_data do |channel, data|
-     print "Connection: #{data}"
-     if data =~ /sudo password: /
-       ch.send_data("password\n"),
-       :ljm
-     end ; end ; end }
-}
+# dispatch {
+#  :sudo => lambda {|x| channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
+#    abort "Could not execute sudo #{command} unless success"
+#    channel.on_data do |channel, data|
+#      print "Connection: #{data}"
+#      if data =~ /sudo password: /
+#        ch.send_data("password\n")
+#
+#      end ; end ; end }
+# }
 
 # spawn this as a thread
-def sudo_openssh(host, user, password, command)
-  Net::SSH.start(host, user, :password => password) do |ssh|
-    ssh.open_channel do |channel|
-
-    channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
-      abort "Could not execute sudo #{command} unless success"
-      channel.on_data do |channel, data|
-        print "Connection: #{data}"
-        if data =~ /sudo password: /
-          ch.send_data("password\n")
-
-        end
-      end
-    end
-  end
-end
+# def sudo_openssh(host, user, password, command)
+#   Net::SSH.start(host, user, :password => password) do |ssh|
+#     ssh.open_channel do |channel|
+#
+#     channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
+#       abort "Could not execute sudo #{command}" unless success
+#       channel.on_data do |channel, data|
+#         print "Connection: #{data}"
+#         if data =~ /sudo password: /
+#           ch.send_data("password\n")
+#
+#         end
+#       end
+#     end
+#   end
+# end
 
   class NodeManager
-    attr_accessor :host, :user, :password, :command
+    attr_accessor :host, :user, :password
 
     def initialize(host, user, password)
       @host = host
       @user = user
       @password = password
-      @key = key 
+      #@key = key
     end
-    def openssh
-      secure = Net::SSH.start(host, user, password, command)
+    def open_ssh_conn(command)
+      Net::SSH.start(@host, @user, :password => @password) do |ssh|
+        ssh.open_channel do |channel|
+          channel.exec command do |channel, success|
+            abort "Could not execute #{command}" unless success
+            channel.on_data do |channel, data|
+              return data
+
+            end
+          end
+        end
+      end
     end
   end
 
@@ -107,6 +117,8 @@ def main(srvs)
   host = srvs
   command = nil
   cmd_count = 0
+  conns = Array.new
+  conns.push(NodeManager.new('10.0.1.22', 'vishnu', 'password'))
 
    while command != ('exit' || 'quit')
      #$EXTENDPROMPT ?  command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> " : command =  "IMS> "
@@ -115,6 +127,10 @@ def main(srvs)
      cmd_count += 1
      $history.push command if $history.include?(command)
      `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
+     conns.each {|conn|
+       p "Host #{conn.host}"
+       p conn.open_ssh_conn(command)
+     }
 
 
 
