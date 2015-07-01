@@ -22,7 +22,9 @@ opt_parser = OptionParser.new do |opts|
 end
 
 opt_parser.parse!
+
 hosts = ARGV.shift || '/etc/superhighway/hosts.json'
+password = ARGV.shift || false
 $XGUI = ARGV.shift || false
 #running on xwindows system opt and non xwindows but forward to xwindows opt
 # extended prompt yes||No
@@ -42,14 +44,67 @@ else
   #exit 1
 end
 
-$history = Array.new # for history cache
+$stack = Queque.new
+
+def lexxsexx(expr, opsTable)
+  tokens = expr.split(" ")
+  tokens.each do |tok|
+    type = tok =~ /\A\w+\Z/ ? :tok : nil
+    opsTable[type || tok][tok]
+  end
+end
+
+dispatch {
+ :sudo => lambda {|x| channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
+   abort "Could not execute sudo #{command} unless success"
+   channel.on_data do |channel, data|
+     print "Connection: #{data}"
+     if data =~ /sudo password: /
+       ch.send_data("password\n"),
+       :ljm
+     end ; end ; end }
+}
+
+# spawn this as a thread
+def sudo_openssh(host, user, password, command)
+  Net::SSH.start(host, user, :password => password) do |ssh|
+    ssh.open_channel do |channel|
+
+    channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
+      abort "Could not execute sudo #{command} unless success"
+      channel.on_data do |channel, data|
+        print "Connection: #{data}"
+        if data =~ /sudo password: /
+          ch.send_data("password\n")
+
+        end
+      end
+    end
+  end
+end
+
+  class NodeManager
+    attr_accessor :host, :user, :password, :command
+
+    def initialize(host, user, password)
+      @host = host
+      @user = user
+      @password = password
+      @key = key 
+    end
+    def openssh
+      secure = Net::SSH.start(host, user, password, command)
+    end
+  end
+
+$history = Array.new # for historStringy cache
 dpatch = Hash.new
 #dpatch[:ssh]
 
 def main(srvs)
 #def main(hosts_file)
   #servers = JSON.parse(hosts_file)
-  hsts = srvs
+  host = srvs
   command = nil
   cmd_count = 0
 
@@ -59,7 +114,10 @@ def main(srvs)
      break if command.nil?
      cmd_count += 1
      $history.push command if $history.include?(command)
-     `notify-send "Issuing command: [#{command}] to host(s) [#{hsts.keys}]"` if $XGUI
+     `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
+
+
+
 
   #   ## Dispatch table
   #
