@@ -15,6 +15,8 @@ opt_parser = OptionParser.new do |opts|
   Usage: #{exec_name} <optional host file> \n
 
   Will load hosts.json from current directory or /etc/superhighway/hosts.json must be valid JSON"
+
+
 end
 
 opt_parser.parse!
