@@ -18,8 +18,8 @@ opt_parser = OptionParser.new do |opts|
 end
 
 opt_parser.parse!
-
 hosts = ARGV.shift || '/etc/superhighway/hosts.json'
+$XGUI = ARGV.shift
 
 if hosts && File.exists?(hosts)
   main(hosts)
@@ -49,7 +49,7 @@ def main(srvs)
      command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ", true)
      break if command.nil?
      cmd_count += 1
-     `notify-send "Issuing command: #{command} to host(s) #{hsts}"`
+     `notify-send "Issuing command: [#{command}] to host(s) [#{hsts.keys}]"` if $XGUI
 
   #   ## Dispatch table
   #
