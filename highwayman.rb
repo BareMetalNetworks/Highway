@@ -2,6 +2,8 @@
 require 'json'
 require 'optparse'
 require 'readline'
+require 'highline'
+require 'net/ssh'
 
 all_srv = Array.new
 all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.26 10.0.1.15 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1
@@ -21,7 +23,10 @@ end
 
 opt_parser.parse!
 hosts = ARGV.shift || '/etc/superhighway/hosts.json'
-$XGUI = ARGV.shift
+$XGUI = ARGV.shift || false
+#running on xwindows system opt and non xwindows but forward to xwindows opt
+# extended prompt yes||No
+$EXTENDPROMPT = true
 
 if hosts && File.exists?(hosts)
   main(hosts)
@@ -37,6 +42,7 @@ else
   #exit 1
 end
 
+$history = Array.new # for history cache
 dpatch = Hash.new
 #dpatch[:ssh]
 
@@ -48,13 +54,16 @@ def main(srvs)
   cmd_count = 0
 
    while command != ('exit' || 'quit')
-     command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ", true)
+     #$EXTENDPROMPT ?  command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> " : command =  "IMS> "
+     command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
      break if command.nil?
      cmd_count += 1
+     $history.push command if $history.include?(command)
      `notify-send "Issuing command: [#{command}] to host(s) [#{hsts.keys}]"` if $XGUI
 
   #   ## Dispatch table
   #
+
    end
 
 
