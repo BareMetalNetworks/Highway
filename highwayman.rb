@@ -53,7 +53,6 @@ def lexxsexx(expr, opsTable)
   end
 end
 
-
   class NodeManager
     attr_accessor :host, :user, :password
 
@@ -78,52 +77,47 @@ end
     end
   end
 
-$history = Array.new # for historStringy cache
-dpatch = Hash.new
-#dpatch[:ssh]
+$history = Array.new # for history cache
 
-## Populate hosts hostname by calling each ip and running hostname
+##### Future Features #####
+## Populate hosts hostname by calling each ip and running hostname during the setup
+## Have both batch and single host command issue
+## Write a parser/lexxer for builtins
+## History support
+## Refactor NodeManager into Node
+## Dispatch table for builtin commands IMS> batch <command>  IMS> host :staged0 <command>
+## Buildout options table
+## Create another class to Manage those nodes?
+###########################
 
 def main(srvs)
-#def main(hosts_file)
   command = nil
   cmd_count = 0
   conns = Array.new
-  #conns.push(NodeManager.new('10.0.1.22', 'vishnu', 'password'))
   threadedcmd = lambda { |conn| Thread.new { p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }}
   issuecmd = lambda { |conn|  p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }
-
   srvs.each {|srv| conns.push(NodeManager.new(srv, 'vishnu', 'password' ))}
-   begin
-   while command != ('exit' || 'quit')
-     command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
-     #if command.match ~
-     break if command.nil?
-     cmd_count += 1
-     $history.push command if $history.include?(command)
-     `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
-     begin
-     conns.each {|conn|
-       threadedcmd.call(conn)
-     }
 
-     rescue => err
-       p "Error: #{err.inspect}"
-       next
-     end
-     end
+  begin
+    while command != ('exit' || 'quit')
+      command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
+      break if command.nil?
+      cmd_count += 1
+      $history.push command if $history.include?(command)
+      `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
+      begin
+        conns.each {|conn| threadedcmd.call(conn)}
 
-   rescue => err
-     p "Error: #{err.inspect}"
+      rescue => err
+        p "[Issuer] Error: #{err.inspect}"
+        next
+      end
+    end
+
+  rescue => err
+    p "[Main] Error: #{err.inspect}"
     retry
-
-   end
-
-
-
-  #   ## Dispatch table
-
-
+  end
 end
 
 main(all_srv)
