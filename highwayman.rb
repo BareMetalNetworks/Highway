@@ -90,6 +90,8 @@ def main(srvs)
   cmd_count = 0
   conns = Array.new
   #conns.push(NodeManager.new('10.0.1.22', 'vishnu', 'password'))
+  threadedcmd = lambda { |conn| Thread.new { p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }}
+  issuecmd = lambda { |conn|  p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }
 
   srvs.each {|srv| conns.push(NodeManager.new(srv, 'vishnu', 'password' ))}
    begin
@@ -102,9 +104,9 @@ def main(srvs)
      `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
      begin
      conns.each {|conn|
-       p "### Host #{conn.host} ###"
-       p conn.open_ssh_conn(command)
+       threadedcmd.call(conn)
      }
+
      rescue => err
        p "Error: #{err.inspect}"
        next
