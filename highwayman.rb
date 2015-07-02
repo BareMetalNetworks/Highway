@@ -4,21 +4,20 @@ require 'optparse'
 require 'readline'
 require 'highline'
 require 'net/ssh'
+require 'fuzzy_match'
 
 all_srv = Array.new
-all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.26 10.0.1.15 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1
-.23 10.0.1.28 10.0.1.29}
+all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28}
 
 srvs = {:datastore0 => '10.0.1.18', :datastore2 => '10.0.1.32', :app2 => '10.0.1.27', :app3 => '10.0.1.28', :app1 => "10
 .0..23"}
+
 opt_parser = OptionParser.new do |opts|
   exec_name = File.basename($PROGRAM_NAME)
   opts.banner = "###### Highwayman IMS ######## \n # BareMetal's Infrastructure Management Console\n
   Usage: #{exec_name} <optional host file> \n
 
   Will load hosts.json from current directory or /etc/superhighway/hosts.json must be valid JSON"
-
-
 end
 
 opt_parser.parse!
@@ -54,34 +53,6 @@ def lexxsexx(expr, opsTable)
   end
 end
 
-# dispatch {
-#  :sudo => lambda {|x| channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
-#    abort "Could not execute sudo #{command} unless success"
-#    channel.on_data do |channel, data|
-#      print "Connection: #{data}"
-#      if data =~ /sudo password: /
-#        ch.send_data("password\n")
-#
-#      end ; end ; end }
-# }
-
-# spawn this as a thread
-# def sudo_openssh(host, user, password, command)
-#   Net::SSH.start(host, user, :password => password) do |ssh|
-#     ssh.open_channel do |channel|
-#
-#     channel.exec "sudo -p 'sudo password: ' #{command}" do |channel, success|
-#       abort "Could not execute sudo #{command}" unless success
-#       channel.on_data do |channel, data|
-#         print "Connection: #{data}"
-#         if data =~ /sudo password: /
-#           ch.send_data("password\n")
-#
-#         end
-#       end
-#     end
-#   end
-# end
 
   class NodeManager
     attr_accessor :host, :user, :password
@@ -111,36 +82,46 @@ $history = Array.new # for historStringy cache
 dpatch = Hash.new
 #dpatch[:ssh]
 
+## Populate hosts hostname by calling each ip and running hostname
+
 def main(srvs)
 #def main(hosts_file)
-  #servers = JSON.parse(hosts_file)
-  host = srvs
   command = nil
   cmd_count = 0
   conns = Array.new
-  conns.push(NodeManager.new('10.0.1.22', 'vishnu', 'password'))
+  #conns.push(NodeManager.new('10.0.1.22', 'vishnu', 'password'))
 
+  srvs.each {|srv| conns.push(NodeManager.new(srv, 'vishnu', 'password' ))}
+   begin
    while command != ('exit' || 'quit')
-     #$EXTENDPROMPT ?  command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> " : command =  "IMS> "
      command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
+     #if command.match ~
      break if command.nil?
      cmd_count += 1
      $history.push command if $history.include?(command)
      `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
+     begin
      conns.each {|conn|
-       p "Host #{conn.host}"
+       p "### Host #{conn.host} ###"
        p conn.open_ssh_conn(command)
      }
+     rescue => err
+       p "Error: #{err.inspect}"
+       next
+     end
+     end
 
-
-
-
-  #   ## Dispatch table
-  #
+   rescue => err
+     p "Error: #{err.inspect}"
+    retry
 
    end
 
 
+
+  #   ## Dispatch table
+
+
 end
 
-main(srvs)
+main(all_srv)
