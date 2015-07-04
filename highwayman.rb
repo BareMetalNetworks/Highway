@@ -5,11 +5,41 @@ require 'readline'
 require 'highline'
 require 'net/ssh'
 require 'fuzzy_match'
+require 'redis'
+
+##### Future Features #####
+## Populate hosts hostname by calling each ip and running hostname during the setup
+## Have both batch and single host command issue
+## Write a parser/lexxer for builtins
+## History support -- redis
+## Refactor Node into Node
+## Dispatch table for builtin commands IMS> batch <command>  IMS> host :staged0 <command>
+## Buildout options table
+## Create another class to Manage those nodes?
+## Output to a file or stuff in a database options -- redis
+## Batch command execution and cluster management REPL and plain vanilla CLI toolkit
+## Redis backed store of hostname/node info plus node statistics & command issue returns
+## Also redis backed store for fuzzymatch future.
+
 # Author: SJK, Senior Developer, BareMetalNetworks Corp
 # First week of July 2015
 
 ## Fuzzymatch.new(['foo', 'bar', 'baz']).find("far")
+
 all_srv = Array.new
+
+def setup_redis(host, port, dbfixnum)
+  redis = Redis.new({:host => host, :port => port})
+  redis.select(dbfixnum)
+  redis
+end
+
+## Needs command parsing
+## DB0 is for sysop's system events, DB1 is for IMS, DB2,3 reserved but unallocated, DB4 is for testing/junk
+redi = setup_redis('10.0.1.17', '6379', 1)
+
+File.load('/etc/hosts') || File.load('/etc/cluster', 'r')
+
 all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28}
 
 srvs = {:datastore0 => '10.0.1.18', :datastore2 => '10.0.1.32', :app2 => '10.0.1.27', :app3 => '10.0.1.28', :app1 => "10
@@ -57,16 +87,18 @@ def lexxsexx(expr, opsTable)
   end
 end
 
-  class NodeManager
-    attr_accessor :host, :user, :password
+  class Node
+    attr_accessor :host, :user, :password, :running, :results
 
     def initialize(host, user, password)
       @host = host
       @user = user
       @password = password
+      @results = Array.new
+      @running = false
       #@key = key
     end
-    def open_ssh_conn(command)
+    def shexec(command)
       Net::SSH.start(@host, @user, :password => @password) do |ssh|
         ssh.open_channel do |channel|
           channel.exec command do |channel, success|
@@ -83,32 +115,23 @@ end
 
 $history = Array.new # for history cache
 
-##### Future Features #####
-## Populate hosts hostname by calling each ip and running hostname during the setup
-## Have both batch and single host command issue
-## Write a parser/lexxer for builtins
-## History support
-## Refactor NodeManager into Node
-## Dispatch table for builtin commands IMS> batch <command>  IMS> host :staged0 <command>
-## Buildout options table
-## Create another class to Manage those nodes?
-## Output to a file or stuff in a database options
-###########################
+
 
 def main(srvs)
   command = nil
   cmd_count = 0
   conns = Array.new
-  nodeRes = Hash.new([])
-
-  # Function issuers, threaded and non-threaded
-  threadedcmd = lambda { |conn| Thread.new { nodeRes[conn.host].push(conn.open_ssh_conn(command)) }}
-  #threadedcmd = lambda { |conn| Thread.new { p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }}
-  issuecmd = lambda { |conn|  p "### Host #{conn.host} ###\n" + conn.open_ssh_conn(command) }
 
   # Construct node objects, populate them with hash: keys are hostnames and value is array for results
-  srvs.each {|srv| conns.push(NodeManager.new(srv, 'vishnu', 'password' ))}
-  conns.each {|conn| h = conn.open_ssh_conn('hostname'); nodeRes[h.chomp.to_s.to_sym] = ['alive']  }
+  srvs.each {|srv| conns.push(Node.new(srv, 'vishnu', 'password' ))}
+  ## store hostnames in redis with a 5min expiry
+  conns.each {|conn| h = conn.shexec('hostname'); conn.running = true  }
+
+  # Function issuers, threaded and non-threaded
+  threadedcmd = lambda { |conn| Thread.new { conn.results.push(conn.shexec(command)) }}
+  #threadedcmd = lambda { |conn| Thread.new { p "### Host #{conn.host} ###\n" + conn.shexec(command) }}
+  issuecmd = lambda { |conn|  p "### Host #{conn.host} ###\n" + conn.shexec(command) }
+
 
   begin
     while command != ('exit' || 'quit')
@@ -118,17 +141,17 @@ def main(srvs)
       $history.push command if $history.include?(command)
       `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
       begin
-        conns.each {|conn| threadedcmd.call(conn)}
+        conns.each {|conn| threadedcmd.call(conn) if conn.running}
 
       rescue => err
-        p "[Issuer] Error: #{err.inspect}"
+        pp "[Issuer] Error: #{err.inspect} #{err.backtrace}"
         next
       end
       p nodeRes
     end
 
   rescue => err
-    p "[Main] Error: #{err.inspect}"
+    pp "[Main] Error: #{err.inspect} #{err.backtrace} on #{File.}"
     retry
   end
 end
