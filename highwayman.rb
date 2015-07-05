@@ -6,7 +6,10 @@ require 'highline'
 require 'net/ssh'
 require 'fuzzy_match'
 require 'redis'
-$PROGRAM_NAME = 'IMS.rb'
+require 'resolv'
+require './lib/liboptions'
+
+$PROGRAM_NAME = 'IMS'
 $VERSION = '0.1.0'
 ###########################################################################################
 # Author: SJK, Senior Developer, BareMetalNetworks.com                                    #
@@ -29,60 +32,22 @@ $VERSION = '0.1.0'
 ## History match/Command completion
 ## Fuzzymatch.new(['foo', 'bar', 'baz']).find("far")
 
+setup_redis = lambda { redis = Redis.new({:host => options[:redishost], :port => options[:redisport]})
+                          redis.select(options[:redistable]) ; redis}
+$redis = setup_redis.call
 
-
-## Needs command parsing
-## Stack0 is redis only server on 10.0.1.17
-# On stack0 DB0 is for sysop's system events, DB1 is for IMS, DB2,3 reserved but unallocated,
-# DB4 is for testing/junk
-
-
-options = {}
-opt_parser = OptionParser.new do |opts|
-  exec_name = File.basename($PROGRAM_NAME)
-  opts.banner = "###### Highway IMS ######## \n # BareMetal's Infrastructure Management Console\n
-  # GNU Readline supported Ctrl-* and Alt-* emacs keybindings available\n
-  Usage: #{exec_name} <options> \n""   "
-
-  options[:version] = false
-  opts.on('-v', '--verbose', 'Wordy output') { options[:verbose] = true}
-  options[:logfile] = nil
-  opts.on('-l', '--logfile FILE', 'Write STDOUT to a file') { |f| options[:logfile] = f }
-
-  options[:redishost] = nil
-  opts.on('-h', '--host REDIS-HOST', 'Redis database host, required for command completion, history, and pushing
-events out to an alt interface (Like a web UI or a remote syslog srv). Defaults to localhost') { |h|
-    options[:redishost] = h if  }
-
-  options[:redisport] = nil
-  opts.on('-p', '--port REDIS-PORT', 'Redis database host port') { |p| options[:redisport] = p }
-  options[:redistable] = nil
-  opts.on('-t', '--redis-table REDIS-DATABASE-TABLE', 'Redis database table number, e.g. 1 or 3') { |d|
-    options[:redistable] = d }
-
-
-
-
-end ; opt_parser.parse!
-
-def setup_redis
-  redis = Redis.new({:host => options[:redishost], :port => options[:redisport]})
-  redis.select(options[:redistable])
-  redis
-end
-redi = setup_redis('10.0.1.17', '6379', 1)
-
-redi.key(:node_ips)?
+#redi.key?(:node_ips)
 
 all_srv = Array.new
+$redis[hwy:allServers]
 all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28}
 
 srvs = {:datastore0 => '10.0.1.18', :datastore2 => '10.0.1.32', :app2 => '10.0.1.27', :app3 => '10.0.1.28', :app1 => "10
 .0..23"}
 
 
-hosts = ARGV.shift || '/etc/superhighway/hosts.json'
-password = ARGV.shift || false
+
+
 $XGUI = ARGV.shift || false
 #running on xwindows system opt and non xwindows but forward to xwindows opt
 # extended prompt yes||No
@@ -113,7 +78,7 @@ def lexxsexx(expr, opsTable)
 end
 
   class Node
-    attr_accessor :host, :user, :password, :running, :results
+    attr_accessor :host, :user, :password, :running, :results, :hostname, :physHost
 
     def initialize(host, user, password)
       @host = host
@@ -147,10 +112,10 @@ def main(srvs)
   cmd_count = 0
   conns = Array.new
 
-  # Construct node objects, populate them with hash: keys are hostnames and value is array for results
+  # Construct node objects, keys are hostnames and results is array
   srvs.each {|srv| conns.push(Node.new(srv, 'vishnu', 'password' ))}
   ## store hostnames in redis with a 5min expiry
-  conns.each {|conn| h = conn.shexec('hostname'); conn.running = true  }
+  conns.each {|conn| node.hostname = node.shexec('hostname'); node.running = true  }
 
   # Function issuers, threaded and non-threaded
   threadedcmd = lambda { |conn| Thread.new { conn.results.push(conn.shexec(command)) }}
@@ -159,6 +124,7 @@ def main(srvs)
 
 
   begin
+    result = []
     while command != ('exit' || 'quit')
       command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
       break if command.nil?
@@ -169,14 +135,14 @@ def main(srvs)
         conns.each {|conn| threadedcmd.call(conn) if conn.running}
 
       rescue => err
-        pp "[Issuer] Error: #{err.inspect} #{err.backtrace}"
+        pp "[SSH Issuer] Error: #{err.inspect} #{err.backtrace} on #{__FILE__} on line #{__LINE__}"
         next
       end
-      p nodeRes
+      p conn.each { |conn| p conn.result}
     end
 
   rescue => err
-    pp "[Main] Error: #{err.inspect} #{err.backtrace} on #{File.}"
+    pp "[Main] Error: #{err.inspect} #{err.backtrace} on #{__FILE__} on line #{__LINE__}"
     retry
   end
 end
