@@ -7,6 +7,10 @@ require 'net/ssh'
 require 'fuzzy_match'
 require 'redis'
 require 'redis-objects'
+require 'redis/list'
+require 'redis/hash'
+r
+
 require 'resolv'
 require 'connection_pool'
 require './lib/liboptions'
@@ -91,13 +95,27 @@ begin
 
 ## History match/Command completion
 ## Fuzzymatch.new(['foo', 'bar', 'baz']).find("far")
+  $history = Array.new # for history cache
+
+	class Node
+
+  end
+
+	class Servers
+    include Redis::Object
+
+
+    list :results
+    sorted_set :hostnames
+    set :hash_key
+  end
 
 Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
   Redis.new({:host => options[:redishost], :port => options[:redisport], :db => options[:redistable]}) }
 
 
 $SRVLIST = Redis::List.new('hwy:allHosts') #:marshall => true
-
+$HISTORY = Redis::List.new('hwy:history')
 
 all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28
 10.0.1.29 10.0.1.30 10.0.1.14 10.0.1.16 10.0.1.13 10.0.1.17}
@@ -118,78 +136,23 @@ end
 
 
 
-$XGUI = ARGV.shift || false
-#running on xwindows system opt and non xwindows but forward to xwindows opt
-# extended prompt yes||No
-$EXTENDPROMPT = true
-
-
-$stack = Array.new
-
-def lexxsexx(expr, opsTable)
-  tokens = expr.split(" ")
-  tokens.each do |tok|
-    type = tok =~ /\A\w+\Z/ ? :tok : nil
-    opsTable[type || tok][tok]
-  end
-end
-
-  class Node
-    attr_accessor :host, :user, :password, :sshkey, :running, :results, :hostname, :physHost
-
-    def initialize(host, user, password)
-      @host = host
-      @user = user
-      @password = password
-      @results = Array.new
-      @running = false
-      @sshkey = sshkey
-    end
-
-    def shexec(command)
-      Net::SSH.start(@host, @user, :password => @password) do |ssh|
-        ssh.open_channel do |channel|
-          channel.exec command do |channel, success|
-            raise "Could not execute #{command}" unless success
-            channel.on_data do |channel, data|
-              return data
-
-            end
-          end
-        end
-      end
-    end
-  end
-
-$history = Array.new # for history cache
-
-
 
 def main(srvs, options)
   command = nil
   cmd_count = 0
-  conns = Array.new
-  options[:password] = nil
-  # Construct node objects, keys are hostnames and results is array
-  srvs.each {|srv| conns.push(Node.new(srv, options[:user], options[:password] ))}
-  ## store hostnames in redis with a 5min expiry
-
-  conns.each {|node| node.hostname = node.shexec('hostname'); node.running = true  }
-
-
-  # Function issuers, threaded and non-threaded
-  threadedcmd = lambda { |conn| Thread.new { conn.results.push(conn.shexec(command)) }}
-  #threadedcmd = lambda { |conn| Thread.new { p "### Host #{conn.host} ###\n" + conn.shexec(command) }}
-  #issuecmd = lambda { |conn|  p "### Host #{conn.host} ###\n" + conn.shexec(command) }
-
+  nodes = Hash.new
+  srvs.each {|srv| nodes[:srv] = Rye::Box.new(srv)
 
   begin
     result = []
-    while command != ('exit' || 'quit')
+    while command != ('exit' || 'quit'|| 'q')
       command = Readline.readline("#{Time.now}-#{cmd_count.to_s}-IMS> ")
       break if command.nil?
       cmd_count += 1
-      $history.push command if $history.include?(command)
+      if command.match(/^history\s+\d+$/)
+        if $HISTORY.i
+      end
+      $HISTORY.push command if $history.include?(command)
       `notify-send "Issuing command: [#{command}] to host(s) [#{host.keys}]"` if $XGUI
       begin
         conns.each {|conn| threadedcmd.call(conn) if conn.running}
