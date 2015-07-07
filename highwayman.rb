@@ -10,6 +10,7 @@ require 'redis-objects'
 require 'resolv'
 require 'connection_pool'
 require './lib/liboptions'
+require 'rye'
 
 $PROGRAM_NAME = 'IMS'
 $VERSION = '0.1.0'
@@ -60,14 +61,14 @@ begin
 
 
     options[:redishost] = '127.0.0.1'
-    opts.on('-h', '--host [REDIS-HOST]', 'Redis database host. Defaults to localhost') { |h|
+    opts.on('-r', '--redis-host [REDIS-HOST]', 'Redis database host. Defaults to localhost') { |h|
       options[:redishost] = h if h =~ Resolv::IPv4::Regex ? true : false }
 
     options[:redisport] = '6379'
-    opts.on('-P', '--port [REDIS-PORT]', 'Redis database host port'){ |p| options[:redisport] = p if p.is_a?(Fixnum) }
+    opts.on('-R', '--redis-port [REDIS-PORT]', 'Redis database host port'){ |p| options[:redisport] = p if p.is_a?(Fixnum) }
 
     options[:redispass] = nil
-    opts.on('-p', '--password [REDIS-PASSWORD]', 'Redis database password') { |p| options[:redispass] = p || nil }
+    opts.on('-w', '--redis-password [REDIS-PASSWORD]', 'Redis database password') { |p| options[:redispass] = p || nil }
 
     options[:redistable] = 1
     opts.on('-t', '--redis-table [REDIS-TABLE]', 'Redis table number, must be a fixnum e.g. 1 or 3'){ |d|
@@ -95,11 +96,8 @@ Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
   Redis.new({:host => options[:redishost], :port => options[:redisport], :db => options[:redistable]}) }
 
 
-$SRVLIST = Redis::List.new('hwy:allnodeIPs') #:marshall => true
+$SRVLIST = Redis::List.new('hwy:allHosts') #:marshall => true
 
-  #
-  # p $SRVLIST.length
-  # p $SRVLIST.values
 
 all_srv = %w{10.0.1.200 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28
 10.0.1.29 10.0.1.30 10.0.1.14 10.0.1.16 10.0.1.13 10.0.1.17}
@@ -108,13 +106,17 @@ p all_srv.length
 srvs = {:datastore0 => '10.0.1.18', :datastore2 => '10.0.1.32', :app2 => '10.0.1.27', :app3 => '10.0.1.28', :app1 => "10
 .0..23"}
 
+	hosts = %w{datastore0 datastore1 datastore2 datastore3 app0 app1 app2 app3 app4 app5 app6 dev0 dev1 dev2 dev3 manager0 devops0 stack0}
+
+	p hosts.length
+	$SRVLIST.push hosts unless $SRVLIST.length < 14
+
 rescue => err
   p "[INIT] Error during initialization: File #{__FILE__} Line #{__LINE__} #{err.inspect}, #{err.backtrace}"
 
 end
 
 
-p 'foo'
 
 $XGUI = ARGV.shift || false
 #running on xwindows system opt and non xwindows but forward to xwindows opt
