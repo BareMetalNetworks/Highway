@@ -1,12 +1,5 @@
 
 
-def lexxsexx(expr, opsTable)
-	tokens = expr.split(" ")
-	tokens.each do |tok|
-		type = tok =~ /\A\w+\Z/ ? :tok : nil
-		opsTable[type || tok][tok]
-	end
-end
 
 class Node
 	attr_accessor :host, :user, :password, :sshkey, :running, :results, :hostname, :physHost
@@ -35,7 +28,7 @@ class Node
 	end
 end
 
-def alt_main(srvs, options)
+def alt_repl(srvs, options)
 	command = nil
 	cmd_count = 0
 	nodes = Hash.new
