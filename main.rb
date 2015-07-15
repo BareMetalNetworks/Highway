@@ -15,13 +15,20 @@ Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
 
 SRVLIST = Redis::List.new('Nodes') #:marshall => true
 boxes = []
- SRVLIST.each {|srv| boxes.push Rye::Box.new srv, :safe => false; boxes}
+ SRVLIST.each {|srv| boxes.push(Rye::Box.new(srv, :safe => false)); boxes}
 p boxes if $DBG
 cluster = Rye::Set.new
 cluster.parallel = true
 SRVLIST.each {|srv| cluster.add_boxes srv}
 p boxes if $DBG
 
+
+def load_phys_hosts(srvs)
+	physical = Rye::Set.new
+	physical.parallel = true
+	hosts = %{atlas archangel neptune}
+	srvs.map{ |host| host}
+end
 
 def load_hosts(srvs)
 
@@ -32,7 +39,9 @@ srvs.values
 end
 ## END INIT ####################################################################################
 
+def get_vm_status
 
+end
 
 def batch_exec
 
