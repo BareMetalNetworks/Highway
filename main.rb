@@ -10,9 +10,18 @@ $o[:redisHost] = '10.0.1.17' || ARGV[0]
 $o[:redisPort] = '6379' || ARGV[1]
 $o[:redisTable] = '0' || ARGV[2]
 
+
+class RapidStore
+	include Redis::Objects
+
+	attr_accessor :physicalHosts, :nodes
+
+end
+
 Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
 	Redis.new({:host => $o[:redisHost], :port => $o[:redisPort], :db => $o[:redisTable]}) }
 
+PHYS = Redis::List.new('physicalHosts')
 SRVLIST = Redis::List.new('Nodes') #:marshall => true
 boxes = []
  SRVLIST.each {|srv| boxes.push(Rye::Box.new(srv, :safe => false)); boxes}
@@ -30,12 +39,15 @@ def load_phys_hosts(srvs)
 	srvs.map{ |host| host}
 end
 
-def load_hosts(srvs)
+def load_hosts(redis_serv_list, hosts_in_cluster_to_add)
+
+	physhosts = %w{atlas archangel neptune}
+	physhosts.each {|foo| PHYS << foo}
 
 hosts = %w{datastore0 datastore1 datastore2 datastore3 app0 app1 app2 app3 app4 app5 app6 dev0 dev1 dev2 dev3 manager0 devops0 stack0}
-srvs.clear
+redis_serv_list.clear
 hosts.map {|host| srvs << host }
-srvs.values
+redis_serv_list.values
 end
 ## END INIT ####################################################################################
 
@@ -46,6 +58,7 @@ end
 def batch_exec
 
 end
+
 
 
 __END__
