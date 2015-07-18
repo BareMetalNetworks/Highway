@@ -44,12 +44,16 @@ p  physicalHosts if $DBG
 hres = clusterHosts.execute 'vboxmanage showvminfo '
 
 
+class Titan
+
+
 
 def load_phys_hosts(srvs)
 	physical = Rye::Set.new
 	physical.parallel = true
 	hosts = %{atlas archangel neptune}
 	srvs.map{ |host| host}
+	physical
 end
 
 def load_hosts(redis_serv_list, hosts_in_cluster_to_add)
