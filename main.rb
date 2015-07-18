@@ -5,46 +5,51 @@ require 'pp'
 require 'connection_pool'
 $DBG = true
 ## INIT ##############################################################################################
-$o = {}
-$o[:redisHost] = '10.0.1.17' || ARGV[0]
-$o[:redisPort] = '6379' || ARGV[1]
-$o[:redisTable] = '0' || ARGV[2]
 
-
-class RapidStore
-	include Redis::Objects
-
-	attr_accessor :physicalHosts, :nodes
-
-end
-
-Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
-	Redis.new({:host => $o[:redisHost], :port => $o[:redisPort], :db => $o[:redisTable]}) }
-
-
-SRVLIST = Redis::List.new('Nodes') #:marshall => true
-boxes = []
- SRVLIST.each {|srv| boxes.push(Rye::Box.new(srv, :safe => false)); boxes}
-p boxes if $DBG
-cluster = Rye::Set.new
-cluster.parallel = true
-boxes.each {|srv| cluster.add_boxes srv}
-p boxes if $DBG
-
-PHYS = Redis::List.new('physicalHosts')
-physicalHosts = []
-PHYS.each {|srv| physicalHosts.pus(Rye::Bye.new(srv, :safe => false)); physicalHosts}
-clusterHosts = Rye::Set.new
-clusterHosts.parallel = true
-physicalHosts.each {|srv| clusterHosts.add_boxes srv}
-p  physicalHosts if $DBG
 
 # clusterHosts and cluster, physical hosts and virtual servers respectively
 
 hres = clusterHosts.execute 'vboxmanage showvminfo '
 
+class SuperCluster
+	include Redis::Objects
+	attr_accessor :nodes, :nodeHosts
 
-class Titan
+	def initialize
+		$o = {}
+		$o[:redisHost] = '10.0.1.17' || ARGV[0]
+		$o[:redisPort] = '6379' || ARGV[1]
+		$o[:redisTable] = '0' || ARGV[2]
+
+		Redis::Objects.redis = ConnectionPool.new(size: 5, timeout: 5) {
+			Redis.new({:host => $o[:redisHost], :port => $o[:redisPort], :db => $o[:redisTable]}) }
+
+		SRVLIST = Redis::List.new('Nodes') #:marshall => true
+		boxes = []
+		SRVLIST.each {|srv| boxes.push(Rye::Box.new(srv, :safe => false)); boxes}
+		p boxes if $DBG
+		nodes = Rye::Set.new
+		nodes.parallel = true
+		boxes.each {|srv|nodes.add_boxes srv}
+		p nodes if $DBG
+
+
+		PHYS = Redis::List.new('physicalHosts')
+		physicalHosts = []
+		PHYS.each {|srv| physicalHosts.pus(Rye::Bye.new(srv, :safe => false)); physicalHosts}
+		clusterHosts = Rye::Set.new
+		clusterHosts.parallel = true
+		physicalHosts.each {|srv| clusterHosts.add_boxes srv}
+		p  physicalHosts if $DBG
+
+
+
+	end
+
+end
+
+
+class Titan < SuperCluster
 
 
 
@@ -75,6 +80,9 @@ end
 def batch_exec
 
 end
+
+end
+
 
 
 
