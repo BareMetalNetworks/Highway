@@ -13,7 +13,7 @@ require 'redis'
 require 'redis-objects'
 require 'redis/list'
 require 'redis/hash_key'
-r
+require 'mongo'
 
 require 'resolv'
 require 'connection_pool'
