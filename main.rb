@@ -58,67 +58,36 @@ Redis::Objects.redis = ConnectionPool.new(size: 10, timeout: 5) {
 
 module SuperCluster
 	include Redis::Objects
-	attr_accessor :nodes, :hosts
+	attr_accessor :nodes, :hosts, :appips, :devips, :powerplantips, :datastoreips, :managerips, :allips
 
 	def initialize
-		SRVLIST = Redis::List.new('Nodes') #:marshall => true
-		boxes = []
-		SRVLIST.each {|srv| boxes.push(Rye::Box.new(srv, :safe => false)); boxes}
-		p boxes if $DBG
-		nodes = Rye::Set.new
-		nodes.parallel = true
-		boxes.each {|srv|nodes.add_boxes srv}
-		p nodes if $DBG
+    @@appips = %w{10.0.1.23 10.0.1.14 10.0.1.27 10.0.1.28}
+    @@devips = %w{10.0.1.16 10.0.1.10 10.0.1.38 10.0.1.21 10.0.1.22}
+    @@powerplantips = %w{10.0.1.50}
+    @@datastoreips = %w{10.0.1.7 10.0.1.13 10.0.1.19 10.0.1.39 10.0.1.32 10.0.1.17 10.0.1.34}
+    @@managerips = %w{10.0.1.200 10.0.1.201 10.0.1.30}
+    @@allips = @@appips, @@devips, @@powerplantips, @@datastoreips, @@managerips
 
-
-		PHYS = Redis::List.new('physicalHosts')
-		physicalHosts = []
-		PHYS.each {|srv| physicalHosts.pus(Rye::Bye.new(srv, :safe => false)); physicalHosts}
-		clusterHosts = Rye::Set.new
-		clusterHosts.parallel = true
-		physicalHosts.each {|srv| clusterHosts.add_boxes srv}
-		p  physicalHosts if $DBG
-
-
-
+    #SRVLIST = Redis::List.new('Nodes') #:marshall => true
+		@boxes = []
+    SRVLIST = @@all_ips
+		SRVLIST.each {|srv| @boxes.push(Rye::Box.new(srv, :safe => false)); @boxes}
+		p @boxes if $DBG
+		@nodes = Rye::Set.new
+		@nodes.parallel = true
+		@boxes.each {|srv|@nodes.add_boxes srv}
+		p @nodes if $DBG
 	end
 
 end
 
 
-class Titan < SuperCluster
+
+def get_vm_status ;end
+
+def batch_exec ;end
 
 
-
-def load_phys_hosts(srvs)
-	physical = Rye::Set.new
-	physical.parallel = true
-	hosts = %{atlas archangel neptune}
-	srvs.map{ |host| host}
-	physical
-end
-
-def load_hosts(redis_serv_list, hosts_in_cluster_to_add)
-
-	physhosts = %w{atlas archangel neptune}
-	physhosts.each {|foo| PHYS << foo}
-
-hosts = %w{datastore0 datastore1 datastore2 datastore3 app0 app1 app2 app3 app4 app5 app6 dev0 dev1 dev2 dev3 manager0 devops0 stack0}
-redis_serv_list.clear
-hosts.map {|host| srvs << host }
-redis_serv_list.values
-end
-## END INIT ####################################################################################
-
-def get_vm_status
-
-end
-
-def batch_exec
-
-end
-
-end
 
 ## Needs command parsing
 ## Stack0 is redis only server on 10.0.1.17
@@ -266,3 +235,33 @@ ret = box.uptime
 p ret.stdout
 
 
+class Titan < SuperCluster
+
+
+
+def load_phys_hosts(srvs)
+	physical = Rye::Set.new
+	physical.parallel = true
+	hosts = %{atlas archangel neptune}
+	srvs.map{ |host| host}
+	physical
+end
+
+def load_hosts(redis_serv_list, hosts_in_cluster_to_add)
+
+	physhosts = %w{atlas archangel neptune}
+	physhosts.each {|foo| PHYS << foo}
+
+hosts = %w{datastore0 datastore1 datastore2 datastore3 app0 app1 app2 app3 app4 app5 app6 dev0 dev1 dev2 dev3 manager0 devops0 stack0}
+redis_serv_list.clear
+hosts.map {|host| srvs << host }
+redis_serv_list.values
+end
+## END INIT ####################################################################################
+	PHYS = Redis::List.new('physicalHosts')
+		physicalHosts = []
+		PHYS.each {|srv| physicalHosts.pus(Rye::Bye.new(srv, :safe => false)); physicalHosts}
+		clusterHosts = Rye::Set.new
+		clusterHosts.parallel = true
+		physicalHosts.each {|srv| clusterHosts.add_boxes srv}
+		p  physicalHosts if $DBG
