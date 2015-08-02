@@ -35,29 +35,14 @@ $DBG = true
 
 #### INIT ############################################################################################
 
-all_srv = Array.new
-all_srv = %w{10.0.1.200 10.0.1.201 10.0.1.30 10.0.1.14 10.0.1.16 10.0.1.21 10.0.1.22 10.0.1.23 10.0.1.27 10.0.1.28 10
-.0.1.29 10.0.1.34 10.0.1.17 10.0.1.36 10.0.1.37 10.0.1.38 10.0.1.39 10.0.1.40 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28}.uniq!
-
-app_nodes = %w{10.0.1.23 10.0.1.14 10.0.1.27 10.0.1.28}
-dev_nodes = %w{10.0.1.16 10.0.1.10 10.0.1.38 10.0.1.21 10.0.1.22}
-powerplant = %w{10.0.1.50}
-datastores = %w{10.0.1.7 10.0.1.13 10.0.1.19 10.0.1.39 10.0.1.32 10.0.1.17 10.0.1.34}
-managers = %w{10.0.1.200 10.0.1.201 10.0.1.30}
-all_ips = app_nodes + dev_nodes + powerplant + datastores + managers
-
 srvs = {:datastore0 => '10.0.1.18', :datastore2 => '10.0.1.32', :app2 => '10.0.1.27', :app3 => '10.0.1.28', :app1 => "10
 .0..23"}
-
-# clusterHosts and cluster, physical hosts and virtual servers respectively
-Redis::Objects.redis = ConnectionPool.new(size: 10, timeout: 5) {
-	Redis.new({:host => '10.0.1.17', :db => '0'}) }
 
 
 #hres = clusterHosts.execute 'vboxmanage showvminfo '
 
 module SuperCluster
-	include Redis::Objects
+#	include Redis::Objects
 	attr_accessor :nodes, :hosts, :appips, :devips, :powerplantips, :datastoreips, :managerips, :allips
 
 	def initialize
@@ -89,38 +74,7 @@ def batch_exec ;end
 
 
 
-## Needs command parsing
-## Stack0 is redis only server on 10.0.1.17
-# On stack0 DB0 is for sysop's system events, DB1 is for IMS, DB2,3 reserved but unallocated,
-# DB4 is for testing/junk
 
-options = {}
-opt_parser = OptionParser.new do |opts|
-	exec_name = File.basename($PROGRAM_NAME)
-	opts.banner = "###### Highway IMS ######## \n # BareMetal's Infrastructure Management Console\n
-  # GNU Readline supported Ctrl-* and Alt-* emacs keybindings available\n
-  Usage: #{exec_name} <options> \n""   "
-
-	options[:version] = false
-	opts.on('-v', '--verbose', 'Wordy output') { options[:verbose] = true}
-	options[:logfile] = nil
-	opts.on('-l', '--logfile FILE', 'Write STDOUT to a file') { |f| options[:logfile] = f }
-
-	options[:redishost] = nil
-	opts.on('-h', '--host REDIS-HOST', 'Redis database host, required for command completion, history, and pushing
-events out to an alt interface (Like a web UI or a remote syslog srv). Defaults to localhost') { |h|
-		options[:redishost] = h if  }
-
-	options[:redisport] = nil
-	opts.on('-p', '--port REDIS-PORT', 'Redis database host port') { |p| options[:redisport] = p }
-	options[:redistable] = nil
-	opts.on('-t', '--redis-table REDIS-DATABASE-TABLE', 'Redis database table number, e.g. 1 or 3') { |d|
-		options[:redistable] = d }
-
-
-
-
-end ; opt_parser.parse!
 
 
 hosts = ARGV.shift || '/etc/superhighway/hosts.json'
@@ -229,6 +183,51 @@ main(all_srv)
 
 
 __END__
+
+
+## Needs command parsing
+## Stack0 is redis only server on 10.0.1.17
+# On stack0 DB0 is for sysop's system events, DB1 is for IMS, DB2,3 reserved but unallocated,
+# DB4 is for testing/junk
+
+options = {}
+opt_parser = OptionParser.new do |opts|
+	exec_name = File.basename($PROGRAM_NAME)
+	opts.banner = "###### Highway IMS ######## \n # BareMetal's Infrastructure Management Console\n
+  # GNU Readline supported Ctrl-* and Alt-* emacs keybindings available\n
+  Usage: #{exec_name} <options> \n""   "
+
+	options[:version] = false
+	opts.on('-v', '--verbose', 'Wordy output') { options[:verbose] = true}
+	options[:logfile] = nil
+	opts.on('-l', '--logfile FILE', 'Write STDOUT to a file') { |f| options[:logfile] = f }
+
+	options[:redishost] = nil
+	opts.on('-h', '--host REDIS-HOST', 'Redis database host, required for command completion, history, and pushing
+events out to an alt interface (Like a web UI or a remote syslog srv). Defaults to localhost') { |h|
+		options[:redishost] = h if  }
+
+	options[:redisport] = nil
+	opts.on('-p', '--port REDIS-PORT', 'Redis database host port') { |p| options[:redisport] = p }
+	options[:redistable] = nil
+	opts.on('-t', '--redis-table REDIS-DATABASE-TABLE', 'Redis database table number, e.g. 1 or 3') { |d|
+		options[:redistable] = d }
+
+
+
+all_srv = Array.new
+all_srv = %w{10.0.1.200 10.0.1.201 10.0.1.30 10.0.1.14 10.0.1.16 10.0.1.21 10.0.1.22 10.0.1.23 10.0.1.27 10.0.1.28 10
+.0.1.29 10.0.1.34 10.0.1.17 10.0.1.36 10.0.1.37 10.0.1.38 10.0.1.39 10.0.1.40 10.0.1.32 10.0.1.27 10.0.1.10 10.0.1.7 10.0.1.19 10.0.1.20 10.0.1.21 10.0.1.22 10.0.1.28}.uniq!
+
+app_nodes = %w{10.0.1.23 10.0.1.14 10.0.1.27 10.0.1.28}
+dev_nodes = %w{10.0.1.16 10.0.1.10 10.0.1.38 10.0.1.21 10.0.1.22}
+powerplant = %w{10.0.1.50}
+datastores = %w{10.0.1.7 10.0.1.13 10.0.1.19 10.0.1.39 10.0.1.32 10.0.1.17 10.0.1.34}
+managers = %w{10.0.1.200 10.0.1.201 10.0.1.30}
+all_ips = app_nodes + dev_nodes + powerplant + datastores + managers
+
+
+end ; opt_parser.parse!
 p $SRV.values
 p box = Rye::Box.new("datastore2", :safe => false)
 ret = box.uptime
